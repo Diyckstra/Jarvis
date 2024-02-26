@@ -1,0 +1,41 @@
+---
+# tasks file for init_ubuntu
+
+- name: Run the equivalent of "apt-get update" as a separate step
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: Update all packages to their latest version
+  ansible.builtin.apt:
+    name: "*"
+    state: latest
+
+- name: Install packages
+  ansible.builtin.apt:
+    update_cache: yes
+    name: "{{ item }}"
+    state: latest
+  with_items:
+    - python3
+
+- name: Generate an OpenSSH rsa keypair for root
+  community.crypto.openssh_keypair:
+    path: /root/.ssh/id_rsa
+    type: rsa
+  become: true
+  become_user: root
+
+- name: Generate an OpenSSH rsa keypair for user
+  community.crypto.openssh_keypair:
+    path: "/home/{{ ansible_user }}/.ssh/id_rsa"
+    type: rsa
+  become: false
+
+- name: Set authorized key for users
+  ansible.posix.authorized_key:
+    user: "{{ item }}"
+    state: present
+    key: "{{ lookup('file', '{{ ssh_public_key_path }}') }}"
+  with_items:
+    - root
+    - "{{ ansible_user }}"

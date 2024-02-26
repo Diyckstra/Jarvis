@@ -1,0 +1,209 @@
+---
+# tasks file for config_zabbix
+- name: Set facts connection
+  ansible.builtin.set_fact:
+    ansible_network_os: community.zabbix.zabbix
+    ansible_connection: httpapi
+    ansible_httpapi_port: 443
+    ansible_httpapi_use_ssl: true
+    ansible_httpapi_validate_certs: false
+    ansible_zabbix_url_path: ""
+
+- name: Create Zabbix token and generate token string
+  vars:
+    ansible_user: Admin
+    ansible_httpapi_pass: "{{ zabbix_password }}"
+  community.zabbix.zabbix_token:
+    name: Ansible_Token
+    description: Ansible_Token
+    username: Admin
+    status: true
+    expires_at: 0
+    generate_token: true
+    state: present
+  register: zabbix_api_token
+  until: zabbix_api_token["msg"] == "Successfully updated token."
+  retries: 2
+  delay: 1
+
+- name: Set API token
+  ansible.builtin.set_fact:
+    ansible_zabbix_auth_key: "{{ zabbix_api_token['token'] }}"
+
+- name: Telegram media
+  community.zabbix.zabbix_mediatype:
+    name: Telegram
+    type: webhook
+    status: enabled
+    webhook_script: "{{ lookup('file', 'telegram.js') }}"
+    webhook_timeout: 10s
+    webhook_params: 
+      - { name: "Message",    value: "{ALERT.MESSAGE}" }
+      - { name: "ParseMode",  value: "html" }
+      - { name: "Subject",    value: "{ALERT.SUBJECT}" }
+      - { name: "To",         value: "{ALERT.SENDTO}" }
+      - { name: "Token",      value: "{{ zabbix_hosts['tg_bot_token'] }}" }
+    message_templates:
+      - eventsource:  triggers
+        recovery:     operations
+        subject:      "{{ tg_message_template_problem_subject }}" 
+        body:         "{{ tg_message_template_problem_body }}"
+
+      - eventsource:  triggers
+        recovery:     recovery_operations
+        subject:      "{{ tg_message_template_problem_recovery_subject }}"
+        body:         "{{ tg_message_template_problem_recovery_body }}"
+
+      - eventsource:  triggers
+        recovery:     update_operations
+        subject:      "{{ tg_message_template_problem_update_subject }}"
+        body:         "{{ tg_message_template_problem_update_body }}"
+
+      - eventsource:  discovery
+        recovery:     operations
+        subject:      "{{ tg_message_template_discovery_subject }}"
+        body:         "{{ tg_message_template_discovery_body }}"
+
+      - eventsource:  autoregistration
+        recovery:     operations
+        subject:      "{{ tg_message_template_autoregistration_subject }}"
+        body:         "{{ tg_message_template_autoregistration_body }}"
+
+- name: Create main web-user
+  community.zabbix.zabbix_user:
+    username: "{{ ansible_user }}"
+    passwd: "{{ ansible_password }}"
+    usrgrps: "Zabbix administrators"
+    role_name: "Super admin role"
+    lang: en_US
+    theme: dark-theme
+    autologin: yes
+    autologout: "0"
+    refresh: "30"
+    rows_per_page: "50"
+    after_login_url: ""
+    timezone: "Europe/Moscow"
+    user_medias:
+      - mediatype: Telegram
+        sendto: "{{ zabbix_hosts['tg_my_id'] }}"
+        period: 1-7,00:00-24:00
+        severity:
+          not_classified: no
+          information: no
+          warning: no
+          average: yes
+          high: yes
+          disaster: yes
+        active: yes
+    state: present
+
+- name: Create new global macro or update an existing macro's value
+  community.zabbix.zabbix_globalmacro:
+    macro_name: "{$SNMP_COMMUNITY}"
+    macro_value: "{{ zabbix_hosts['snmp_community'] }}"
+    macro_type: text
+    state: present
+
+- name: Create host groups
+  community.zabbix.zabbix_group:
+    state: present
+    host_groups: "{{ zabbix_hosts['host_groups'] }}"
+
+- name: Import Zabbix Nvidia templates from XML
+  community.zabbix.zabbix_template:
+    template_xml: "{{ lookup('file', '{{ item }}') }}"
+    state: present
+  with_items:
+   - 'zbx_nvidia-smi-multi-gpu.xml'
+   - 'Remote_Network_ICMP.xml'
+
+- name: Create a new SNMP hosts
+  community.zabbix.zabbix_host:
+    host_name:        "{{ item['host_name'] }}"
+    visible_name:     "{{ item['visible_name'] }}"
+    host_groups:      "{{ item['host_groups'] }}"
+    link_templates:   "{{ item['link_templates'] }}"
+    status:           enabled
+    state:            present
+    interfaces:
+      - type:         snmp
+        main:         1
+        useip:        "{{ item['useip'] }}"
+        ip:           "{{ item['ip_hostname'] }}"
+        dns:          "{{ item['dns_hostname'] }}"
+        port:         "{{ item['port'] }}"
+        details:
+          community:  "{$SNMP_COMMUNITY}"
+          version:    "{{ item['snmp_version'] }}"
+          bulk:       1
+  loop: "{{ zabbix_hosts['hosts']['snmp'] }}"
+
+- name: Create a new Agent hosts
+  community.zabbix.zabbix_host:
+    host_name:      "{{ item['host_name'] }}"
+    visible_name:   "{{ item['visible_name'] }}"
+    host_groups:    "{{ item['host_groups'] }}"
+    link_templates: "{{ item['link_templates'] }}"
+    status:         enabled
+    state:          present
+    interfaces:
+      - type:       agent
+        main:       1
+        useip:      "{{ item['useip'] }}"
+        ip:         "{{ item['ip_hostname'] }}"
+        dns:        "{{ item['dns_hostname'] }}"
+        port:       "{{ item['port'] }}"
+  loop: "{{ zabbix_hosts['hosts']['agent'] }}"
+
+- name: Create Action
+  community.zabbix.zabbix_action:
+    name: "Send alerts to Admin"
+    event_source: "trigger"
+    state: present
+    status: enabled
+    conditions:
+      - type: "host_group"
+        operator: "equals"
+        value: "Moscow"
+        formulaid: A
+      - type: "trigger_severity"
+        operator: ">="
+        value: "average"
+        formulaid: B
+    formula: A and B
+    operations:
+      - type: send_message
+        media_type: "Telegram"
+        send_to_users:
+          - "{{ ansible_user }}"
+        subject: ""
+        op_message: "⚠️ <strong>{HOST.HOST} - {TRIGGER.NAME}</strong>\r\n<code>Last value: {ITEM.LASTVALUE1} ({TIME})</code>"
+    recovery_operations:
+      - type: send_message
+        media_type: "Telegram"
+        send_to_users:
+          - "{{ ansible_user }}"
+        subject: ""
+        op_message: "✅ <strong>{HOST.HOST} - <s>{TRIGGER.NAME}</s></strong>\r\n<code>Last value: {ITEM.LASTVALUE1} ({TIME})</code>"
+    acknowledge_operations:
+      - type: send_message
+        media_type: "Telegram"
+        send_to_users:
+          - "{{ ansible_user }}"
+
+- name: Change password of admin
+  community.zabbix.zabbix_user:
+    username: Admin
+    override_passwd: true
+    passwd: "{{ lookup('ansible.builtin.password', './zabbix_Admin_password.tmp', chars=['ascii_letters', 'digits']) }}"
+    usrgrps: "Zabbix administrators"
+    role_name: "Super admin role"
+    lang: en_US
+    theme: dark-theme
+    autologin: no
+    autologout: "600"
+    refresh: "30"
+    rows_per_page: "50"
+    after_login_url: ""
+    timezone: "Europe/Moscow"
+    state: present

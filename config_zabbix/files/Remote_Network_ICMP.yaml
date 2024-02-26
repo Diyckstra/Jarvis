@@ -1,0 +1,108 @@
+zabbix_export:
+  version: '6.0'
+  date: '2024-02-26T21:35:28Z'
+  groups:
+    - uuid: fcbabe7d26dd485d9dc15fc17aefdb6f
+      name: Templates/Network
+  templates:
+    - uuid: 866cbfb8871a47d7a6acbc0368afb2f5
+      template: Template.Remote.Network.ICMP
+      name: Template.Remote.Network.ICMP
+      templates:
+        - name: Template.Remote.Network.ICMP.Ping
+        - name: Template.Remote.Network.ICMP.Ping_Loss
+        - name: Template.Remote.Network.ICMP.Ping_Time
+      groups:
+        - name: Templates/Network
+    - uuid: d3356c7b1d594036adbf4af55f3439d3
+      template: Template.Remote.Network.ICMP.Ping
+      name: Template.Remote.Network.ICMP.Ping
+      groups:
+        - name: Templates/Network
+      items:
+        - uuid: cb8b05b95acc4277b20a32c0b21c1e8b
+          name: Ping
+          type: SIMPLE
+          key: 'icmpping[,5,1000,,2000]'
+          delay: 30s
+          valuemap:
+            name: 'Service state'
+          request_method: POST
+          triggers:
+            - uuid: 3d63425fb2674926a498d119a2f4511c
+              expression: 'max(/Template.Remote.Network.ICMP.Ping/icmpping[,5,1000,,2000],#8)=0'
+              name: '{HOST.NAME} недоступен по ICMP'
+              priority: HIGH
+              manual_close: 'YES'
+      valuemaps:
+        - uuid: d6aa757ce34e43129d7deb9d8c90b7ee
+          name: 'Service state'
+          mappings:
+            - value: '0'
+              newvalue: Down
+            - value: '1'
+              newvalue: Up
+    - uuid: 6223aca72c574618bc4c66705c773bd6
+      template: Template.Remote.Network.ICMP.Ping_Loss
+      name: Template.Remote.Network.ICMP.Ping_Loss
+      groups:
+        - name: Templates/Network
+      items:
+        - uuid: 6bef86294eea4102bc3bdef7dcdeeda2
+          name: Ping_Loss
+          type: SIMPLE
+          key: 'icmppingloss[,10,1000,,2000]'
+          delay: 60s
+          value_type: FLOAT
+          units: '%'
+          request_method: POST
+          triggers:
+            - uuid: 49387f449060401e88c3072e82081385
+              expression: 'min(/Template.Remote.Network.ICMP.Ping_Loss/icmppingloss[,10,1000,,2000],#6)>25'
+              name: 'Интенсивные потери пакетов до {HOST.NAME}'
+              priority: AVERAGE
+              dependencies:
+                - name: '{HOST.NAME} недоступен по ICMP'
+                  expression: 'max(/Template.Remote.Network.ICMP.Ping/icmpping[,5,1000,,2000],#8)=0'
+    - uuid: 3c219bb020d44a84a15f058e68bbdc6b
+      template: Template.Remote.Network.ICMP.Ping_Time
+      name: Template.Remote.Network.ICMP.Ping_Time
+      groups:
+        - name: Templates/Network
+      items:
+        - uuid: 0d883a96f7b243179ae6b4b9f37338c9
+          name: Icmp_Time
+          type: SIMPLE
+          key: 'icmppingsec[,5,1000,,2000,]'
+          delay: 60s
+          value_type: FLOAT
+          units: s
+          request_method: POST
+          triggers:
+            - uuid: bf695acfded64acebdeabc2d3b233e73
+              expression: 'min(/Template.Remote.Network.ICMP.Ping_Time/icmppingsec[,5,1000,,2000,],600s)>0.15'
+              name: 'Значительные задержки пакетов до {HOST.NAME}'
+              priority: AVERAGE
+              dependencies:
+                - name: '{HOST.NAME} недоступен по ICMP'
+                  expression: 'max(/Template.Remote.Network.ICMP.Ping/icmpping[,5,1000,,2000],#8)=0'
+  graphs:
+    - uuid: ade2605ee01a442abcb468e6962f742a
+      name: ICMP
+      graph_items:
+        - color: 1A7C11
+          item:
+            host: Template.Remote.Network.ICMP
+            key: 'icmppingsec[,5,1000,,2000,]'
+        - sortorder: '1'
+          color: F63100
+          yaxisside: RIGHT
+          item:
+            host: Template.Remote.Network.ICMP
+            key: 'icmpping[,5,1000,,2000]'
+        - sortorder: '2'
+          color: 2774A4
+          yaxisside: RIGHT
+          item:
+            host: Template.Remote.Network.ICMP
+            key: 'icmppingloss[,10,1000,,2000]'

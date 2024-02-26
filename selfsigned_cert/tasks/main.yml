@@ -1,0 +1,49 @@
+---
+# tasks file for selfsigned_cert
+
+- name: Create a directory if it does not exist
+  ansible.builtin.file:
+    path: "{{ dir_of_cert }}"
+    state: directory
+    owner: root
+    group: root
+    mode: u=rwx,g=rx,o=rx
+
+- name: Generate an OpenSSL private key
+  community.crypto.openssl_privatekey:
+    path:   "{{ dir_of_cert }}/{{ cert_name }}.key"
+    size:   4096
+    type:   "RSA"
+    state:  present
+
+- name: Generate an OpenSSL Certificate Signing Request
+  community.crypto.openssl_csr:
+    digest:                   sha256
+    path:                     "{{ dir_of_cert }}/{{ cert_name }}.csr"
+    privatekey_path:          "{{ dir_of_cert }}/{{ cert_name }}.key"
+    common_name:              "{{ ansible_host }}"
+    subject_alt_name:         "DNS:{{ ansible_host }}"
+    country_name:             "{{ country_name }}"
+    state_or_province_name:   "{{ state_or_province_name }}"
+    locality_name:            "{{ locality_name }}"
+    organization_name:        "{{ organization_name }}"
+    organizational_unit_name: "{{ organizational_unit_name }}"
+    email_address:            "{{ email }}"
+    state: present
+
+- name: Generate a Self Signed OpenSSL certificate
+  community.crypto.x509_certificate:
+    path:             "{{ dir_of_cert }}/{{ cert_name }}.crt"
+    privatekey_path:  "{{ dir_of_cert }}/{{ cert_name }}.key"
+    csr_path:         "{{ dir_of_cert }}/{{ cert_name }}.csr"
+    provider:         selfsigned
+
+- name: Remove file certificate.pem
+  ansible.builtin.file:
+    path: "{{ dir_of_cert }}/{{ cert_name }}.pem"
+    state: absent
+
+- name: Append KEY and CRT to certificate.pem
+  ansible.builtin.shell: "bash -c 'cat {{ dir_of_cert }}/{{ cert_name }}.key {{ dir_of_cert }}/{{ cert_name }}.crt >> {{ dir_of_cert }}/{{ cert_name }}.pem'"
+  args:
+    executable: /bin/bash

@@ -1,0 +1,5 @@
+init_ca
+init_home_assistant
+tmp
+zabbix_hosts.json
+inventory.yml

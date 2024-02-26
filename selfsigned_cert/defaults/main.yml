@@ -1,0 +1,7 @@
+---
+# defaults file for selfsigned_cert
+country_name: RU
+state_or_province_name: Moscow
+locality_name: Moscow
+organization_name: Deyckstra
+organizational_unit_name: IT

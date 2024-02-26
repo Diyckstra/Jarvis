@@ -1,0 +1,33 @@
+{
+    "snmp_community": "your_snmp_community",
+    "tg_bot_token": "your_telegam_bot_id",
+    "tg_my_id": "your_telegram_id_not_nickname",
+    "host_groups": ["your", "host", "groups"],
+    "hosts": {
+        "snmp": [
+            {
+                "host_name": "snmp.host.local",
+                "visible_name": "snmp.host.local",
+                "dns_hostname": "snmp.host.local",
+                "ip_hostname": "192.168.0.10",
+                "useip": "1",
+                "host_groups": ["your", "host", "groups"],
+                "link_templates": ["linked", "templates"],
+                "port": "161",
+                "snmp_version": "2"
+            }
+        ],
+        "agent": [
+            {
+                "host_name": "windows.agent.host.local",
+                "visible_name": "windows.agent.host.local",
+                "dns_hostname": "windows.agent.host.local",
+                "ip_hostname": "192.168.0.11",
+                "useip": "1",
+                "host_groups": ["your", "host", "groups"],
+                "link_templates": ["Windows by Zabbix agent", "Template Nvidia GPUs Performance"],
+                "port": "10050"
+            }
+        ]
+    }
+}

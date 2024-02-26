@@ -1,0 +1,26 @@
+all:
+  hosts:
+    Host_1:
+      ansible_host:       host_1.stand.local
+      ansible_user:       username_of_host1
+      ansible_password:   password_of_host1
+      ansible_sudo_pass:  sudo_password_of_host1
+      zabbix_password:    zabbix
+      db_password:        password_from_initial_tmp_file
+    Host_2:
+      ansible_host:       host_2.stand.local
+      ansible_user:       username_of_host2
+      ansible_password:   password_of_host2
+      ansible_sudo_pass:  sudo_password_of_host2
+      zabbix_password:    zabbix
+      db_password:        password_from_initial_tmp_file
+  vars:
+    ansible_connection:           ssh
+    ansible_port:                 22
+    ssh_public_key_path:          /path/to/public/ssh/key.pub
+    ansible_ssh_private_key_file: /path/to/private/ssh/key
+    ansible_ssh_common_args:      '-o StrictHostKeyChecking=no'
+    email:                        your@mail.com
+    dir_of_cert:                  /etc/selfsigned_cert
+    cert_name:                    cert_name
+    

@@ -1,0 +1,12 @@
+---
+# defaults file for config_zabbix
+tg_message_template_problem_subject: "Problem: {EVENT.NAME}"
+tg_message_template_problem_body: "Problem started at {EVENT.TIME} on {EVENT.DATE}\r\nProblem name: {EVENT.NAME}\r\nHost: {HOST.NAME}\r\nSeverity: {EVENT.SEVERITY}\r\nOperational data: {EVENT.OPDATA}\r\nOriginal problem ID: {EVENT.ID}\r\n{TRIGGER.URL}"
+tg_message_template_problem_recovery_subject: "Resolved in {EVENT.DURATION}: {EVENT.NAME}"
+tg_message_template_problem_recovery_body: "Problem has been resolved in {EVENT.DURATION} at {EVENT.RECOVERY.TIME} on {EVENT.RECOVERY.DATE}\r\nProblem name: {EVENT.NAME}\r\nHost: {HOST.NAME}\r\nSeverity: {EVENT.SEVERITY}\r\nOriginal problem ID: {EVENT.ID}\r\n{TRIGGER.URL}"
+tg_message_template_problem_update_subject: "Updated problem: {EVENT.NAME}"
+tg_message_template_problem_update_body: "{USER.FULLNAME} {EVENT.UPDATE.ACTION} problem at {EVENT.UPDATE.DATE} {EVENT.UPDATE.TIME}.\r\n{EVENT.UPDATE.MESSAGE}\r\n\r\nCurrent problem status is {EVENT.STATUS}, acknowledged: {EVENT.ACK.STATUS}."
+tg_message_template_discovery_subject: "Discovery: {DISCOVERY.DEVICE.STATUS} {DISCOVERY.DEVICE.IPADDRESS}"
+tg_message_template_discovery_body: "Discovery rule: {DISCOVERY.RULE.NAME}\r\n\r\nDevice IP: {DISCOVERY.DEVICE.IPADDRESS}\r\nDevice DNS: {DISCOVERY.DEVICE.DNS}\r\nDevice status: {DISCOVERY.DEVICE.STATUS}\r\nDevice uptime: {DISCOVERY.DEVICE.UPTIME}\r\n\r\nDevice service name: {DISCOVERY.SERVICE.NAME}\r\nDevice service port: {DISCOVERY.SERVICE.PORT}\r\nDevice service status: {DISCOVERY.SERVICE.STATUS}\r\nDevice service uptime: {DISCOVERY.SERVICE.UPTIME}"
+tg_message_template_autoregistration_subject: "Autoregistration: {HOST.HOST}"
+tg_message_template_autoregistration_body: "Host name: {HOST.HOST}\r\nHost IP: {HOST.IP}\r\nAgent port: {HOST.PORT}"

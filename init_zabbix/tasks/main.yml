@@ -1,0 +1,140 @@
+---
+# tasks file for init_zabbix
+- name: Create directory
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: u=rwx,g=r,o=r
+  with_items:
+  - "{{ temp_zabbix_directory }}"
+
+# Step 2a. Zabbix repository
+# wget zabbix_package.deb
+- name: Download zabbix_package.deb
+  ansible.builtin.get_url:
+    url: "{{ zabbix_package }}"
+    dest: "{{ temp_zabbix_directory }}/zabbix_package.deb"
+    mode: u=rwx,g=r,o=r
+
+# dpkg -i zabbix-release_6.0-4+ubuntu22.04_all.deb
+- name: Install zabbix_package.deb
+  ansible.builtin.apt:
+    deb: "{{ temp_zabbix_directory }}/zabbix_package.deb"
+
+# apt update
+- name: Run the equivalent of "apt-get update"
+  ansible.builtin.apt:
+    update_cache: yes
+
+# Step 2b. Install Zabbix server, frontend, agent
+# apt install zabbix-server-mysql zabbix-frontend-php zabbix-nginx-conf zabbix-sql-scripts zabbix-agent
+- name: Install packages
+  ansible.builtin.apt:
+    update_cache: yes
+    name: "{{ item }}"
+    state: latest
+  with_items:
+    - mysql-server
+    - zabbix-server-mysql
+    - zabbix-frontend-php 
+    - zabbix-nginx-conf
+    - zabbix-sql-scripts
+    - zabbix-agent
+    - python3-mysqldb
+
+- name: Uninstall apache
+  ansible.builtin.apt:
+    name: apache2
+    state: absent
+    purge: true
+    autoremove: yes
+
+- name: Remove default site symlink
+  file:
+    path: "{{ nginx_path }}/sites-enabled/default"
+    state: absent
+
+- name: Remove default index.html
+  ansible.builtin.file:
+    path: /var/www/html/index.nginx-debian.html
+    state: absent
+
+# Step 2c. Create initial database
+- name: Start and autostart mysql
+  systemd:
+    name: mysql
+    enabled: yes
+    state: started
+
+# mysql> create database zabbix character set utf8mb4 collate utf8mb4_bin;
+- name: Create database zabbix
+  community.mysql.mysql_db:
+    name: zabbix
+    encoding: utf8mb4
+    collation: utf8mb4_bin
+    state: present
+
+# mysql> create user zabbix@localhost identified by 'password';
+# mysql> grant all privileges on zabbix.* to zabbix@localhost;
+- name: Create database user using hashed password with all database privileges
+  community.mysql.mysql_user:
+    name: zabbix
+    host: localhost
+    password: "{{ lookup('ansible.builtin.password', './database_password.tmp', chars=['ascii_letters', 'digits']) }}"
+    priv: 'zabbix.*:ALL,GRANT'
+    state: present
+
+# mysql> set global log_bin_trust_function_creators = 1;
+- name: Set global log_bin_trust_function_creators to 1
+  community.mysql.mysql_variables:
+    variable: log_bin_trust_function_creators
+    value: 1
+    mode: global
+
+# zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql --default-character-set=utf8mb4 -uzabbix -p zabbix
+- name: Import zabbix database
+  community.mysql.mysql_db: 
+    name: zabbix
+    encoding: utf8mb4
+    login_user: zabbix
+    login_password: "{{ lookup('ansible.builtin.password', './database_password.tmp', chars=['ascii_letters', 'digits']) }}"
+    target: /usr/share/zabbix-sql-scripts/mysql/server.sql.gz
+    state: import
+
+# mysql> set global log_bin_trust_function_creators = 0;
+- name: Set global log_bin_trust_function_creators to 0
+  community.mysql.mysql_variables:
+    variable: log_bin_trust_function_creators
+    value: 0
+    mode: global
+
+# Step 2d. Configure the database for Zabbix server
+# Edit file /etc/zabbix/zabbix_server.conf
+- name: Write /etc/zabbix/zabbix_server.conf
+  ansible.builtin.template:
+    src: zabbix_server.conf.j2
+    dest: "{{ zabbix_path }}/zabbix_server.conf"
+  with_items:
+    - "{{ lookup('ansible.builtin.password', './database_password.tmp', chars=['ascii_letters', 'digits']) }}"
+
+# Step 2e. Configure PHP for Zabbix frontend
+# Edit file /etc/nginx/conf.d/zabbix.conf uncomment and set 'listen' and 'server_name' directives.
+- name: Write /etc/nginx/conf.d/zabbix.conf
+  ansible.builtin.template:
+    src: zabbix.conf.j2
+    dest: "{{ nginx_path }}/conf.d/zabbix.conf"
+    
+# Step 2f. Start Zabbix server and agent processes
+# Start Zabbix server and agent processes and make it start at system boot.
+- name: Start Zabbix server and agent processes
+  systemd:
+    name: "{{ item }}"
+    enabled: yes
+    state: started
+  with_items:
+    - zabbix-server
+    - zabbix-agent
+    - nginx
+    - php8.1-fpm

@@ -1,0 +1,3 @@
+---
+# vars file for config_zabbix
+zabbix_hosts: "{{ lookup('file', 'zabbix_hosts.json') | from_json }}"
