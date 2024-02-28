@@ -1,0 +1,3 @@
+---
+# defaults file for init_zabbix
+db_vendor: MySQL

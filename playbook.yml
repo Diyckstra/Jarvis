@@ -1,27 +1,32 @@
 ---
 - name: Initialize Ubuntu
-  hosts: Ubuntu
+  hosts: HomeAssistant
   roles:
     - { role: init_ubuntu, become: true, message: "Initialize Ubuntu" }
 
 - name: Issue a self-signed certificate
-  hosts: Ubuntu
+  hosts: HomeAssistant
   roles:
     - { role: selfsigned_cert, become: true, message: "Issue a self-signed certificate" }
 
 - name: Initialize Zabbix
-  hosts: Ubuntu
+  hosts: HomeAssistant
   roles:
     - { role: init_zabbix, become: true, message: "Initialize Zabbix" }
 
 ### Initialize manually in the web interface!
 
 - name: Configure Zabbix
-  hosts: Ubuntu
+  hosts: HomeAssistant
   roles:
     - { role: config_zabbix, become: false, message: "Configure Zabbix" }
 
+# - name: Initialize Prometheus
+#   hosts: HomeAssistant
+#   roles:
+#     - { role: init_prometheus, become: true, message: "Initialize Prometheus" }
+
 # - name: Initialize Home Assistant
-#   hosts: Ubuntu
+#   hosts: HomeAssistant
 #   roles:
 #     - { role: init_home_assistant, become: true, message: "Initialize Home Assistant" }
